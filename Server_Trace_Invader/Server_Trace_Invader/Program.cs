@@ -13,6 +13,7 @@ namespace SerVEr_FInaLe
     {
         static void Main(string[] args)
         {
+            
             string command = "";
             Server s = new Server();
             s.Start();
