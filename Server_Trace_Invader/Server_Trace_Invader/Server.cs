@@ -147,7 +147,51 @@ namespace SerVEr_FInaLe
                                 Console.WriteLine("Erro" + erro);
                                 break;
                             }
-                            strResponse=GetAllReports(cmd);
+                            strResponse= GetAllReportsCoordinates(cmd);
+                            SendData(res, "application/json", strResponse, Encoding.Unicode);
+                            cmd.Dispose();
+                            dbConn.Close();
+                            break;
+                        case "all_species":
+                            strResponse = "";
+                            req = context.Request;
+                            res = context.Response;
+                            writer = new StreamWriter(res.OutputStream);
+
+                            dbConn = new MySql.Data.MySqlClient.MySqlConnection(ConnectionString);
+                            cmd = dbConn.CreateCommand();
+                            try
+                            {
+                                dbConn.Open();
+                            }
+                            catch (Exception erro)
+                            {
+                                Console.WriteLine("Erro" + erro);
+                                break;
+                            }
+                            strResponse = GetAllSpecies(cmd);
+                            SendData(res, "application/json", strResponse, Encoding.Unicode);
+                            cmd.Dispose();
+                            dbConn.Close();
+                            break;
+                        case "":
+                            strResponse = "";
+                            req = context.Request;
+                            res = context.Response;
+                            writer = new StreamWriter(res.OutputStream);
+
+                            dbConn = new MySql.Data.MySqlClient.MySqlConnection(ConnectionString);
+                            cmd = dbConn.CreateCommand();
+                            try
+                            {
+                                dbConn.Open();
+                            }
+                            catch (Exception erro)
+                            {
+                                Console.WriteLine("Erro" + erro);
+                                break;
+                            }
+                            strResponse = GetSpecies(req.QueryString["id_species"],cmd);
                             SendData(res, "application/json", strResponse, Encoding.Unicode);
                             cmd.Dispose();
                             dbConn.Close();
@@ -192,7 +236,7 @@ namespace SerVEr_FInaLe
             try
             {
                 double x = Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
-                cmd.CommandText = "INSERT INTO reports(locationX, locationY, species, timestamp, email, damages, solutions) " +
+                cmd.CommandText = "INSERT INTO reports(locationX, locationY, species, timestamp, email) " +
                                   "VALUES (@X, @Y, @id_species, FROM_UNIXTIME(@timestamp), @email);";
                 cmd.Parameters.AddWithValue("@X", x);
                 cmd.Parameters.AddWithValue("@Y", y);
@@ -220,7 +264,7 @@ namespace SerVEr_FInaLe
         private bool InsertDetail(int idDetail,string damage, string solution,MySqlCommand cmd)
         {
             cmd.CommandText = "INSERT INTO reports(idDetail, damage, solution) " +
-                                  "VALUES (@idDetail, @damage, @solution);";
+                               "VALUES (@idDetail, @damage, @solution);";
             cmd.Parameters.AddWithValue("@idDetail", idDetail);
             cmd.Parameters.AddWithValue("@damage", damage);
             cmd.Parameters.AddWithValue("@solution", solution);
@@ -231,15 +275,15 @@ namespace SerVEr_FInaLe
             return false;
         }
 
-        private string GetAllReports(MySqlCommand cmd)
+        private string GetAllReportsCoordinates(MySqlCommand cmd)
         {
-            List<string> res=new List<string>();
+            List<string> res = new List<string>();
             cmd.CommandText = "SELECT id, locationX, locationY " +
                               "FROM report;";
             cmd.Prepare();
 
             MySqlDataReader SQLreader = cmd.ExecuteReader();
-            
+
             while (SQLreader.Read())
             {
                 var obj = new
@@ -251,6 +295,47 @@ namespace SerVEr_FInaLe
                 res.Add(JsonConvert.SerializeObject(obj));
             }
             return JsonConvert.SerializeObject(res);
+        }
+
+        private string GetAllSpecies(MySqlCommand cmd)
+        {
+            List<string> res = new List<string>();
+            cmd.CommandText = "SELECT idSpecies, name " +
+                              "FROM species;";
+            cmd.Prepare();
+
+            MySqlDataReader SQLreader = cmd.ExecuteReader();
+
+            while (SQLreader.Read())
+            {
+                var obj = new
+                {
+                    id = SQLreader.GetInt32("idSpecies"),
+                    locationX = SQLreader.GetDouble("name"),
+                };
+                res.Add(JsonConvert.SerializeObject(obj));
+            }
+            return JsonConvert.SerializeObject(res);
+        }
+
+        public string GetSpecies(int idSpecies, MySqlCommand cmd)
+        {
+            string res ="";
+            cmd.CommandText = "SELECT wikipedia_summary " +
+                              "FROM species;";
+            cmd.Prepare();
+
+            MySqlDataReader SQLreader = cmd.ExecuteReader();
+
+            while (SQLreader.Read())
+            {
+                var obj = new
+                {
+                    id = SQLreader.GetString("wikipedia_summary"),
+                };
+                res=(JsonConvert.SerializeObject(obj);
+            }
+            return res;
         }
     }
 }
