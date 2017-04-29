@@ -191,7 +191,7 @@ namespace Server_Trace_Invader
                                 Console.WriteLine("Erro" + erro);
                                 break;
                             }
-                            strResponse = GetSpecies(req.QueryString["id_species"],cmd);
+                            strResponse = GetSpecies(Convert.ToInt32(req.QueryString["id_species"]),cmd);
                             SendData(res, "application/json", strResponse, Encoding.Unicode);
                             cmd.Dispose();
                             dbConn.Close();
@@ -240,16 +240,11 @@ namespace Server_Trace_Invader
             try
             {
                 double x = Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
-<<<<<<< HEAD
                 cmd.CommandText = "INSERT INTO report(locationX, locationY, species, timestamp, email) " +
-                                  "VALUES (@X, @Y, @species, FROM_UNIXTIME(@timestamp), @email);";
-=======
-                cmd.CommandText = "INSERT INTO reports(locationX, locationY, species, timestamp, email) " +
-                                  "VALUES (@X, @Y, @id_species, FROM_UNIXTIME(@timestamp), @email);";
->>>>>>> origin/master
+                                  "VALUES (@X, @Y, @idSpecies, FROM_UNIXTIME(@timestamp), @email);";
                 cmd.Parameters.AddWithValue("@X", x);
                 cmd.Parameters.AddWithValue("@Y", y);
-                cmd.Parameters.AddWithValue("@species", species);
+                cmd.Parameters.AddWithValue("@idSpecies", species);
                 cmd.Parameters.AddWithValue("@timestamp", timestamp);
                 cmd.Parameters.AddWithValue("@email", email);
                 if (cmd.ExecuteNonQuery() > 0)
@@ -342,7 +337,7 @@ namespace Server_Trace_Invader
                 {
                     id = SQLreader.GetString("wikipedia_summary"),
                 };
-                res=(JsonConvert.SerializeObject(obj);
+                res=(JsonConvert.SerializeObject(obj));
             }
             return res;
         }

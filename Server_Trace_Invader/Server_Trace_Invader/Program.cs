@@ -21,6 +21,10 @@ namespace Server_Trace_Invader
         {
             Server s = new Server();
             s.Start();
+        }
+
+        static void foo()
+        {
             List<string> countries = new List<string>();
             Console.WriteLine("Insert country: ");
             string country = Console.ReadLine();
@@ -164,9 +168,9 @@ namespace Server_Trace_Invader
             catch (Exception erro)
             {
                 Console.WriteLine("Erro" + erro);
-                
+
             }
-            foreach(ObservationDetail d in obsDetails)
+            foreach (ObservationDetail d in obsDetails)
             {
                 cmd = dbConn.CreateCommand();
                 cmd.CommandText = "INSERT INTO taxons(idTaxon, name, observationCount, wikipedia_summary) " +
@@ -175,18 +179,20 @@ namespace Server_Trace_Invader
                 cmd.Parameters.AddWithValue("@name", d.taxon.name);
                 cmd.Parameters.AddWithValue("@observationCount", d.taxon.observations_count);
                 cmd.Parameters.AddWithValue("@wikipedia_summary", d.taxon.wikipedia_summary);
-                try {
+                try
+                {
                     if (cmd.ExecuteNonQuery() > 0)
                     {
                         Console.WriteLine("Inserito {0}", d.taxon.name);
                     }
-                    
+
                 }
-                catch(Exception e){
+                catch (Exception e)
+                {
                     Console.WriteLine("Errore inserimento {0}", e);
                 }
                 cmd = dbConn.CreateCommand();
-                string timestamp = d.time_observed_at_utc.Replace("T"," ");
+                string timestamp = d.time_observed_at_utc.Replace("T", " ");
                 timestamp = timestamp.Substring(0, timestamp.Length - 5);
                 cmd.CommandText = "INSERT INTO reports(idReport, locationX, locationY, timestamp,trust, email, idTaxon) " +
                                   "VALUES (@idReport, @X, @Y, @timestamp, @trust, @email, @idTaxon);";
@@ -227,13 +233,8 @@ namespace Server_Trace_Invader
                 {
                     Console.WriteLine("Errore inserimento {0}", e);
                 }
-                
+
             }
-
-
-
-
-
         }
     }
 }
