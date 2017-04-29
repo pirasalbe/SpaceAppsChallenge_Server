@@ -85,8 +85,19 @@ namespace SerVEr_FInaLe
 
                                 cmd.Dispose();
                                 cmd = dbConn.CreateCommand();
-                                if (InsertReport(req.QueryString["coordinates"], req.QueryString["species"], req.QueryString["timestamp"], req.QueryString["email"], req.QueryString["damage"], req.QueryString["solution"], cmd))
-                                    strResponse = "ok";
+                                int keyNewReport = InsertReport(req.QueryString["coordinates"], req.QueryString["species"], req.QueryString["timestamp"], req.QueryString["email"], req.QueryString["damage"], req.QueryString["solution"], cmd);
+                                if (keyNewReport>0)
+                                {
+                                    cmd = dbConn.CreateCommand();
+                                    if (InsertDetail(keyNewReport, req.QueryString["damage"], req.QueryString["solution"], cmd))
+                                    {
+                                        strResponse = "ok";
+                                    }
+                                    else
+                                    {
+                                        strResponse = "Error in data insertion.";
+                                    }
+                                }
                                 else
                                     strResponse = "Error in data insertion.";
                                 SendData(res, "text/plain", strResponse, Encoding.Unicode);
@@ -176,26 +187,48 @@ namespace SerVEr_FInaLe
             return res;
         }
 
-        private bool InsertReport(string coordinates, string species, string timestamp, string email, string damages, string solutions, MySqlCommand cmd)
+        private int InsertReport(string coordinates, string species, string timestamp, string email, string damages, string solutions, MySqlCommand cmd)
         {
             try
             {
                 double x = Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
-                cmd.CommandText = "INSERT INTO report(locationX, locationY, species, timestamp, email, damages, solutions) " +
-                                  "VALUES (@X, @Y, @species, FROM_UNIXTIME(@timestamp), @email);";
+                cmd.CommandText = "INSERT INTO reports(locationX, locationY, species, timestamp, email, damages, solutions) " +
+                                  "VALUES (@X, @Y, @id_species, FROM_UNIXTIME(@timestamp), @email);";
                 cmd.Parameters.AddWithValue("@X", x);
                 cmd.Parameters.AddWithValue("@Y", y);
                 cmd.Parameters.AddWithValue("@species", species);
                 cmd.Parameters.AddWithValue("@timestamp", timestamp);
                 cmd.Parameters.AddWithValue("@email", email);
                 if (cmd.ExecuteNonQuery() > 0)
-                    return true;
-                return false;
+                {
+                    cmd.CommandText = "Select idReport " +
+                                      "from reports " +
+                                      "where locationX=@X AND locationY=@Y AND idSpecies=@id_species AND timestamp=FROM_UNIXTIME(@timestamp) AND email=@email);";
+                    MySqlDataReader SQLreader = cmd.ExecuteReader();
+
+                    SQLreader.Read();
+                    return SQLreader.GetInt32("idReport");
+                }
             }
             catch
             {
-                return false;
+                
             }
+            return -1;
+        }
+
+        private bool InsertDetail(int idDetail,string damage, string solution,MySqlCommand cmd)
+        {
+            cmd.CommandText = "INSERT INTO reports(idDetail, damage, solution) " +
+                                  "VALUES (@idDetail, @damage, @solution);";
+            cmd.Parameters.AddWithValue("@idDetail", idDetail);
+            cmd.Parameters.AddWithValue("@damage", damage);
+            cmd.Parameters.AddWithValue("@solution", solution);
+            if (cmd.ExecuteNonQuery() > 0)
+            {
+                return true;
+            }
+            return false;
         }
 
         private string GetAllReports(MySqlCommand cmd)
