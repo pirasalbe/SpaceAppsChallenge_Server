@@ -10,7 +10,7 @@ using System.Threading;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 
-namespace SerVEr_FInaLe
+namespace Server_Trace_Invader
 {
     class Server
     {
@@ -142,6 +142,10 @@ namespace SerVEr_FInaLe
                             dbConn.Close();
                             break;
                         default:
+                            req = context.Request;
+                            res = context.Response;
+                            writer = new StreamWriter(res.OutputStream);
+                            SendData(res, "text/plain", "Error: r contains -> " + context.Request.QueryString["r"], Encoding.Unicode);
                             foreach (string s in context.Request.QueryString.Keys)
                                 Console.WriteLine(s + ": " + context.Request.QueryString[s]);
                             break;
@@ -181,7 +185,7 @@ namespace SerVEr_FInaLe
             try
             {
                 double x = Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
-                cmd.CommandText = "INSERT INTO report(locationX, locationY, species, timestamp, email, damages, solutions) " +
+                cmd.CommandText = "INSERT INTO report(locationX, locationY, species, timestamp, email) " +
                                   "VALUES (@X, @Y, @species, FROM_UNIXTIME(@timestamp), @email);";
                 cmd.Parameters.AddWithValue("@X", x);
                 cmd.Parameters.AddWithValue("@Y", y);
@@ -202,7 +206,7 @@ namespace SerVEr_FInaLe
         {
             List<string> res=new List<string>();
             cmd.CommandText = "SELECT id, locationX, locationY " +
-                              "FROM report;";
+                              "FROM reports;";
             cmd.Prepare();
 
             MySqlDataReader SQLreader = cmd.ExecuteReader();
