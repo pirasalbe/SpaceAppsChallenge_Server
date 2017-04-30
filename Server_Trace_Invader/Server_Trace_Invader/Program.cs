@@ -21,7 +21,19 @@ namespace Server_Trace_Invader
         {
             Server s = new Server();
             s.Start();
-            //foo();
+            Console.WriteLine("Do you want to download more entries for Taxon's database? [y/N]");
+            string command = "";
+            while(command!="y" && command!="n")
+            {
+                // command = Convert.ToString(((command = Console.ReadLine()) == "" ? null : command)[0]).ToLower() ?? "n";
+                command = Console.ReadLine();
+                if (command == "")
+                    command = "n";
+                command = Convert.ToString(command[0]).ToLower();
+            }
+            if(command=="y")
+                foo();
+
         }
 
         static void foo()
@@ -49,6 +61,7 @@ namespace Server_Trace_Invader
             {
                 Console.WriteLine("Loading countries");
                 var request = WebRequest.Create(url + placesParams + "&page=" + page);
+                request.Proxy = null;
                 request.ContentType = "application/json; charset=utf-8";
 
                 var response = (HttpWebResponse)request.GetResponse();
@@ -76,6 +89,7 @@ namespace Server_Trace_Invader
             {
                 Console.WriteLine("Getting countries");
                 var request = WebRequest.Create(url + placesParams + "&page=" + page);
+                request.Proxy = null;
                 request.ContentType = "application/json; charset=utf-8";
 
                 var response = (HttpWebResponse)request.GetResponse();
@@ -97,7 +111,7 @@ namespace Server_Trace_Invader
 
             }
 
-
+            /*
             foreach (Place place in places)
             {
                 Console.WriteLine("Filtering countries");
@@ -105,14 +119,15 @@ namespace Server_Trace_Invader
                 {
                     countrySelected = place;
                 }
-            }
+            }*/
             page = 0;
             end = true;
 
             while (page <= pages)
             {
                 Console.WriteLine("Getting observations at page {0}", page);
-                var request = WebRequest.Create(url + observationParams + "&swlat=" + countrySelected.swlat + "&swlng=" + countrySelected.swlng + "&nelat=" + countrySelected.nelat + "&nelng=" + countrySelected.nelng + "&page=" + page + "&year=" + year + "&month=" + month + "&day=" + day);
+                var request = WebRequest.Create(url + observationParams + "&swlat=" + countrySelected.swlat + "&swlng=" + countrySelected.swlng + "&nelat=" + countrySelected.nelat + "&nelng=" + countrySelected.nelng + "&page=" + page + "&year=" + year + "&month=" + month + "&day=" + day + "&has[geo]");
+                request.Proxy = null;
                 request.ContentType = "application/json; charset=utf-8";
                 var response = (HttpWebResponse)request.GetResponse();
 
@@ -130,21 +145,23 @@ namespace Server_Trace_Invader
                 }
                 page++;
             }
-            List<Observation> filteredObservation = new List<Observation>();
-            foreach (Observation o in obs)
+            //List<Observation> filteredObservation = new List<Observation>();
+           /* foreach (Observation o in obs)
             {
                 Console.WriteLine("Filtering observations by countries");
                 if (countries.Contains(o.place_guess))
                 {
                     filteredObservation.Add(o);
                 }
-            }
+            }*/
 
             List<ObservationDetail> obsDetails = new List<ObservationDetail>();
-            foreach (Observation observation in filteredObservation)
+            foreach (Observation observation in obs)
             {
                 Console.WriteLine("Getting observation details");
                 var request = WebRequest.Create(url + "observations/" + observation.id + ".json");
+
+                request.Proxy = null;
                 request.ContentType = "application/json; charset=utf-8";
                 var response = (HttpWebResponse)request.GetResponse();
 
@@ -173,66 +190,74 @@ namespace Server_Trace_Invader
             }
             foreach (ObservationDetail d in obsDetails)
             {
-                cmd = dbConn.CreateCommand();
-                cmd.CommandText = "INSERT INTO taxons(idTaxon, name, observationCount, wikipedia_summary) " +
-                                  "VALUES (@id, @name, @observationCount, @wikipedia_summary);";
-                cmd.Parameters.AddWithValue("@id", d.taxon.id);
-                cmd.Parameters.AddWithValue("@name", d.taxon.name);
-                cmd.Parameters.AddWithValue("@observationCount", d.taxon.observations_count);
-                cmd.Parameters.AddWithValue("@wikipedia_summary", d.taxon.wikipedia_summary);
-                try
+                if (d.time_observed_at_utc != null)
                 {
-                    if (cmd.ExecuteNonQuery() > 0)
+                    try
                     {
-                        Console.WriteLine("Inserito {0}", d.taxon.name);
-                    }
+                        cmd = dbConn.CreateCommand();
+                        cmd.CommandText = "INSERT INTO taxons(idTaxon, name, observationCount, wikipedia_summary) " +
+                                          "VALUES (@id, @name, @observationCount, @wikipedia_summary);";
+                        cmd.Parameters.AddWithValue("@id", d.taxon.id);
+                        cmd.Parameters.AddWithValue("@name", d.taxon.name);
+                        cmd.Parameters.AddWithValue("@observationCount", d.taxon.observations_count);
+                        cmd.Parameters.AddWithValue("@wikipedia_summary", d.taxon.wikipedia_summary);
+                    
+                        if (cmd.ExecuteNonQuery() > 0)
+                        {
+                            Console.WriteLine("Inserito {0}", d.taxon.name);
+                        }
 
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Errore inserimento {0}", e);
-                }
-                cmd = dbConn.CreateCommand();
-                string timestamp = d.time_observed_at_utc.Replace("T", " ");
-                timestamp = timestamp.Substring(0, timestamp.Length - 5);
-                cmd.CommandText = "INSERT INTO reports(idReport, locationX, locationY, timestamp,trust, email, idTaxon) " +
-                                  "VALUES (@idReport, @X, @Y, @timestamp, @trust, @email, @idTaxon);";
-                cmd.Parameters.AddWithValue("@idReport", Convert.ToInt32(d.id));
-                cmd.Parameters.AddWithValue("@X", Convert.ToDouble(d.latitude.Replace('.', ',')));
-                cmd.Parameters.AddWithValue("@Y", Convert.ToDouble(d.longitude.Replace('.', ',')));
-                cmd.Parameters.AddWithValue("@timestamp", timestamp);
-                cmd.Parameters.AddWithValue("@email", "prova@prova.com");
-                cmd.Parameters.AddWithValue("@trust", 5);
-                cmd.Parameters.AddWithValue("@idTaxon", Convert.ToInt32(d.taxon.id));
-                try
-                {
-                    if (cmd.ExecuteNonQuery() > 0)
+                    }
+                    catch (Exception e)
                     {
-                        Console.WriteLine("Inserito {0}", d.id);
+                        Console.WriteLine("Errore inserimento {0}", e);
                     }
+                    cmd = dbConn.CreateCommand();
 
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Errore inserimento {0}", e);
-                }
-                cmd = dbConn.CreateCommand();
-                cmd.CommandText = "INSERT INTO details(idDetail, quality_grade, identifications_count) " +
-                                  "VALUES (@idDetail, @quality_grade, @identifications_count);";
-                cmd.Parameters.AddWithValue("@idDetail", Convert.ToInt32(d.id));
-                cmd.Parameters.AddWithValue("@quality_grade", d.quality_grade);
-                cmd.Parameters.AddWithValue("@identifications_count", Convert.ToInt32(d.identifications_count));
-                try
-                {
-                    if (cmd.ExecuteNonQuery() > 0)
+                    try
                     {
-                        Console.WriteLine("Inserito {0}", d.id);
-                    }
+                        string timestamp = d.time_observed_at_utc.Replace("T", " ");
+                        timestamp = timestamp.Substring(0, timestamp.Length - 5);
+                        cmd.CommandText = "INSERT INTO reports(idReport, locationX, locationY, timestamp,trust, email, idTaxon) " +
+                                          "VALUES (@idReport, @X, @Y, @timestamp, @trust, @email, @idTaxon);";
+                        cmd.Parameters.AddWithValue("@idReport", Convert.ToInt32(d.id));
+                        cmd.Parameters.AddWithValue("@X", Convert.ToDouble(d.latitude.Replace('.', ',')));
+                        cmd.Parameters.AddWithValue("@Y", Convert.ToDouble(d.longitude.Replace('.', ',')));
+                        cmd.Parameters.AddWithValue("@timestamp", timestamp);
+                        cmd.Parameters.AddWithValue("@email", "prova@prova.com");
+                        cmd.Parameters.AddWithValue("@trust", 5);
+                        cmd.Parameters.AddWithValue("@idTaxon", Convert.ToInt32(d.taxon.id));
+                    
+                        if (cmd.ExecuteNonQuery() > 0)
+                        {
+                            Console.WriteLine("Inserito {0}", d.id);
+                        }
 
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Errore inserimento {0}", e);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Errore inserimento {0}", e);
+                    }
+                    cmd = dbConn.CreateCommand();
+
+                    try
+                    {
+                        cmd.CommandText = "INSERT INTO details(idDetail, quality_grade, identifications_count) " +
+                                      "VALUES (@idDetail, @quality_grade, @identifications_count);";
+                        cmd.Parameters.AddWithValue("@idDetail", Convert.ToInt32(d.id));
+                        cmd.Parameters.AddWithValue("@quality_grade", d.quality_grade);
+                        cmd.Parameters.AddWithValue("@identifications_count", Convert.ToInt32(d.identifications_count));
+                    
+                        if (cmd.ExecuteNonQuery() > 0)
+                        {
+                            Console.WriteLine("Inserito {0}", d.id);
+                        }
+
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Errore inserimento {0}", e);
+                    }
                 }
 
             }
