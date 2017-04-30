@@ -85,13 +85,29 @@ namespace Server_Trace_Invader
 
                                 cmd.Dispose();
                                 cmd = dbConn.CreateCommand();
-                                int keyNewReport = InsertReport(req.QueryString["coordinates"], req.QueryString["species"], req.QueryString["timestamp"], req.QueryString["email"], req.QueryString["damage"], req.QueryString["solution"], cmd);
-                                if (keyNewReport>0)
+                                int keyNewReport = InsertReport(req.QueryString["coordinates"], req.QueryString["id_species"], req.QueryString["timestamp"], req.QueryString["email"], req.QueryString["damage"], req.QueryString["solution"], cmd);
+                                if (keyNewReport > 0)
                                 {
+                                    cmd.Dispose();
                                     cmd = dbConn.CreateCommand();
                                     if (InsertDetail(keyNewReport, req.QueryString["damage"], req.QueryString["solution"], cmd))
                                     {
-                                        strResponse = "ok";
+                                        if (req.QueryString["image_url"] != "")
+                                        {
+                                            string str = req.QueryString["image_url"];
+                                            cmd.Dispose();
+                                            cmd = dbConn.CreateCommand();
+                                            if (InsertImage(req.QueryString["image_url"], keyNewReport, cmd))
+                                                strResponse = "ok";
+                                            else
+                                                strResponse = "Error in data insertion.";
+                                            cmd.Dispose();
+                                            dbConn.Close();
+                                        }
+                                        else
+                                        {
+                                            strResponse = "ok";
+                                        }
                                     }
                                     else
                                     {
@@ -99,7 +115,9 @@ namespace Server_Trace_Invader
                                     }
                                 }
                                 else
+                                {
                                     strResponse = "Error in data insertion.";
+                                }
                                 SendData(res, "text/plain", strResponse, Encoding.Unicode);
                                 cmd.Dispose();
                                 dbConn.Close();
@@ -169,12 +187,12 @@ namespace Server_Trace_Invader
                                 Console.WriteLine("Erro" + erro);
                                 break;
                             }
-                            strResponse = GetAllSpecies(cmd);
+                            strResponse = GetAllTaxon(cmd);
                             SendData(res, "application/json", strResponse, Encoding.Unicode);
                             cmd.Dispose();
                             dbConn.Close();
                             break;
-                        case "":
+                        case "show_report":
                             strResponse = "";
                             req = context.Request;
                             res = context.Response;
@@ -191,11 +209,12 @@ namespace Server_Trace_Invader
                                 Console.WriteLine("Erro" + erro);
                                 break;
                             }
-                            strResponse = GetSpecies(Convert.ToInt32(req.QueryString["id_species"]),cmd);
+                            strResponse = GetReport(Convert.ToInt32(req.QueryString["report_id"]),cmd);
                             SendData(res, "application/json", strResponse, Encoding.Unicode);
                             cmd.Dispose();
                             dbConn.Close();
                             break;
+                        
                         default:
                             req = context.Request;
                             res = context.Response;
@@ -222,7 +241,7 @@ namespace Server_Trace_Invader
         private bool AuthUser(string email, string pswHash, MySqlCommand cmd)
         {
             cmd.CommandText = "SELECT * " +
-                              "FROM user u " +
+                              "FROM users u " +
                               "WHERE u.email=@email AND u.password=@password;";
             cmd.Parameters.AddWithValue("@email", email); 
             cmd.Parameters.AddWithValue("@password", pswHash); 
@@ -235,39 +254,42 @@ namespace Server_Trace_Invader
             return res;
         }
 
-        private int InsertReport(string coordinates, string species, string timestamp, string email, string damages, string solutions, MySqlCommand cmd)
+        private int InsertReport(string coordinates, string Taxon, string timestamp, string email, string damages, string solutions, MySqlCommand cmd)
         {
             try
             {
-                double x = Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
-                cmd.CommandText = "INSERT INTO report(locationX, locationY, species, timestamp, email) " +
-                                  "VALUES (@X, @Y, @idSpecies, FROM_UNIXTIME(@timestamp), @email);";
+                float x = (float)Convert.ToDouble(coordinates.Split(' ')[0].Replace('.', ',')), y = (float)Convert.ToDouble(coordinates.Split(' ')[1].Replace('.', ','));
+                cmd.CommandText = "INSERT INTO reports(locationX, locationY, idTaxon, timestamp, email) " +
+                                  "VALUES (@X, @Y, @idTaxon, FROM_UNIXTIME(@timestamp), @email);";
                 cmd.Parameters.AddWithValue("@X", x);
                 cmd.Parameters.AddWithValue("@Y", y);
-                cmd.Parameters.AddWithValue("@idSpecies", species);
+                cmd.Parameters.AddWithValue("@idTaxon", Taxon);
                 cmd.Parameters.AddWithValue("@timestamp", timestamp);
                 cmd.Parameters.AddWithValue("@email", email);
                 if (cmd.ExecuteNonQuery() > 0)
                 {
                     cmd.CommandText = "Select idReport " +
                                       "from reports " +
-                                      "where locationX=@X AND locationY=@Y AND idSpecies=@id_species AND timestamp=FROM_UNIXTIME(@timestamp) AND email=@email);";
+                                      "where idTaxon=@idTaxon AND timestamp=FROM_UNIXTIME(@timestamp) AND email=@email;";
+
                     MySqlDataReader SQLreader = cmd.ExecuteReader();
 
-                    SQLreader.Read();
-                    return SQLreader.GetInt32("idReport");
+                    bool tmp= SQLreader.Read();
+                    int res= SQLreader.GetInt32("idReport");
+                    SQLreader.Close();
+                    return res;
                 }
             }
-            catch
+            catch(Exception e)
             {
-                
+                Console.WriteLine(e);
             }
             return -1;
         }
 
         private bool InsertDetail(int idDetail,string damage, string solution,MySqlCommand cmd)
         {
-            cmd.CommandText = "INSERT INTO reports(idDetail, damage, solution) " +
+            cmd.CommandText = "INSERT INTO details(idDetail, damage, solution) " +
                                "VALUES (@idDetail, @damage, @solution);";
             cmd.Parameters.AddWithValue("@idDetail", idDetail);
             cmd.Parameters.AddWithValue("@damage", damage);
@@ -282,7 +304,7 @@ namespace Server_Trace_Invader
         private string GetAllReportsCoordinates(MySqlCommand cmd)
         {
             List<string> res = new List<string>();
-            cmd.CommandText = "SELECT id, locationX, locationY " +
+            cmd.CommandText = "SELECT idReport, locationX, locationY " +
                               "FROM reports;";
             cmd.Prepare();
 
@@ -292,7 +314,7 @@ namespace Server_Trace_Invader
             {
                 var obj = new
                 {
-                    id = SQLreader.GetInt32("id"),
+                    id = SQLreader.GetInt32("idReport"),
                     locationX = SQLreader.GetDouble("locationX"),
                     locationY = SQLreader.GetDouble("locationY"),
                 };
@@ -301,11 +323,11 @@ namespace Server_Trace_Invader
             return JsonConvert.SerializeObject(res);
         }
 
-        private string GetAllSpecies(MySqlCommand cmd)
+        private string GetAllTaxon(MySqlCommand cmd)
         {
             List<string> res = new List<string>();
-            cmd.CommandText = "SELECT idSpecies, name " +
-                              "FROM species;";
+            cmd.CommandText = "SELECT idTaxon, name " +
+                              "FROM Taxons;";
             cmd.Prepare();
 
             MySqlDataReader SQLreader = cmd.ExecuteReader();
@@ -314,32 +336,70 @@ namespace Server_Trace_Invader
             {
                 var obj = new
                 {
-                    id = SQLreader.GetInt32("idSpecies"),
-                    locationX = SQLreader.GetDouble("name"),
+                    idTaxon = SQLreader.GetInt32("idTaxon"),
+                    name = SQLreader.GetString("name"),
                 };
                 res.Add(JsonConvert.SerializeObject(obj));
             }
             return JsonConvert.SerializeObject(res);
         }
 
-        public string GetSpecies(int idSpecies, MySqlCommand cmd)
+        private string GetReport(int idReport, MySqlCommand cmd)
         {
-            string res ="";
-            cmd.CommandText = "SELECT wikipedia_summary " +
-                              "FROM species;";
+            List<string> res =new List<string>();
+            cmd.CommandText = "SELECT * " +
+                              "FROM Reports r inner join Taxons t ON (r.idTaxon=t.idTaxon) inner join Details d ON (r.idReport=d.idDetail) left join Images i ON (r.idReport=i.idReport) " +
+                              "WHERE r.idReport =@idReport";
+            cmd.Parameters.AddWithValue("@idReport", idReport);
             cmd.Prepare();
 
             MySqlDataReader SQLreader = cmd.ExecuteReader();
-
+            string damage = "", solution = "", image_url = "";
             while (SQLreader.Read())
             {
+                if (!SQLreader.IsDBNull(SQLreader.GetOrdinal("damage")))
+                {
+                    damage = SQLreader.GetString("damage");
+                }
+                if (!SQLreader.IsDBNull(SQLreader.GetOrdinal("solution")))
+                {
+                    solution = SQLreader.GetString("solution");
+                }
+                if (!SQLreader.IsDBNull(SQLreader.GetOrdinal("url")))
+                {
+                    image_url = SQLreader.GetString("url");
+                }
                 var obj = new
                 {
-                    id = SQLreader.GetString("wikipedia_summary"),
+                    idReport = SQLreader.GetInt32("idReport"),
+                    locationX = SQLreader.GetFloat("locationX"),
+                    locationY = SQLreader.GetFloat("locationY"),
+                    timespan = SQLreader.GetDateTime("timestamp"),
+                    trust = SQLreader.GetInt32("trust"),
+                    email = SQLreader.GetString("email"),
+                    idTaxon = SQLreader.GetInt32("idTaxon"),
+                    name = SQLreader.GetString("name"),
+                    idDetail = SQLreader.GetInt32("idDetail"),
+                    damage = damage,
+                    solution = solution,
+                    image_url = image_url,
                 };
-                res=(JsonConvert.SerializeObject(obj));
+                res.Add(JsonConvert.SerializeObject(obj));
             }
-            return res;
+            return JsonConvert.SerializeObject(res);
+        }
+        
+        private bool InsertImage(string url,int idReport, MySqlCommand cmd)
+        {
+            cmd.CommandText = "INSERT INTO Images(url, idReport) " +
+                                    "VALUES (@url, @idReport);";
+            cmd.Parameters.AddWithValue("@url", url);
+            cmd.Parameters.AddWithValue("@idReport", idReport);
+            if (cmd.ExecuteNonQuery() > 0)
+            {
+                return true;
+            }
+            return false;
         }
     }
 }

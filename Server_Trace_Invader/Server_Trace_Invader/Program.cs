@@ -21,6 +21,7 @@ namespace Server_Trace_Invader
         {
             Server s = new Server();
             s.Start();
+            //foo();
         }
 
         static void foo()
