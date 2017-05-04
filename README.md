@@ -10,8 +10,8 @@
 
 5. Import the database that you can find in the server folder and call it spaceapp.
 
-6. Start the server with administration's privileges.
+6. Start the server with administrative privileges.
 
 7. Connect through a web browser on the website hosted on the webserver.
 
-8. The website now is ready to work.
+8. Now website is ready to work.
