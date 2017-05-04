@@ -4,7 +4,7 @@
 
 2. Download the lastest version of the website at https://github.com/pirasalbe/SpaceAppsChallenge_Web
 
-3. Open the server.php file in the website's folder and set the IP equal to the server IP.
+3. Open the server.php file in the website's folder and set the IP equal to the IP server.
 
 4. Copy the website folder in a webserver.
 
